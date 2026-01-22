@@ -110,6 +110,20 @@ st.markdown("""
         font-size: 1rem;
         color: white;
     }
+    .buzzer-box {
+        background: rgba(85, 107, 47, 0.8);
+        border-radius: 10px;
+        padding: 5px 15px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        font-size: 0.9rem;
+        color: white;
+        text-align: center;
+    }
+    .right-section {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -130,6 +144,8 @@ if 'last_update' not in st.session_state:
     st.session_state.last_update = "Never"
 if 'prediction' not in st.session_state:
     st.session_state.prediction = "No prediction available"
+if 'buzzer' not in st.session_state:
+    st.session_state.buzzer = "Off"
 
 def get_status(value, min_val, max_val):
     if min_val <= value <= max_val:
@@ -173,8 +189,13 @@ st.markdown("""
             <p>By: DI-Binary</p>
         </div>
     </div>
-    <div class="prediction-box">
-        Prediction: """ + st.session_state.prediction + """
+    <div class="right-section">
+        <div class="prediction-box">
+            Prediction: """ + st.session_state.prediction + """
+        </div>
+        <div class="buzzer-box">
+            Buzzer: """ + st.session_state.buzzer + """
+        </div>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -239,15 +260,18 @@ with col1:
     broker_url = st.text_input("Broker URL", "wss://test.mosquitto.org:8081")
     sensor_topic = st.text_input("Sensor Topic", "samsung-innovation-campus/plant-data")
     prediction_topic = st.text_input("Prediction Topic", "samsung-innovation-campus/prediction")
+    output_topic = st.text_input("Output Topic", "samsung-innovation-campus/output")
     
     if st.button("🔌 Connect to MQTT"):
         st.session_state.connected = True
         st.session_state.prediction = "Healthy"  # Simulated prediction
+        st.session_state.buzzer = "On"  # Simulated buzzer on
         st.success("Connected to MQTT broker (simulated)")
     
     if st.button("🔌 Disconnect"):
         st.session_state.connected = False
         st.session_state.prediction = "No prediction available"
+        st.session_state.buzzer = "Off"
         st.info("Disconnected from MQTT broker")
     
     st.markdown('</div>', unsafe_allow_html=True)
