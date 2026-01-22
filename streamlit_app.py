@@ -157,10 +157,6 @@ st.markdown("""
             <p>Samsung Innovation Campus Project</p>
         </div>
     </div>
-    <div class="connection-status">
-        <div class="status-dot""" + (" disconnected" if not st.session_state.connected else "") + """></div>
-        <span>""" + ("Connected" if st.session_state.connected else "Disconnected") + """</span>
-    </div>
 </div>
 """, unsafe_allow_html=True)
 
