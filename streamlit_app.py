@@ -250,16 +250,16 @@ with col3:
     </div>
     """, unsafe_allow_html=True)
 st.markdown('</div>', unsafe_allow_html=True)
-markdown('<div class="section-box">', unsafe_allow_html=True)
+st.markdown('<div class="section-box">', unsafe_allow_html=True)
 st.subheader("Data Visualization")
 time_options = {"1 Hour": 1, "6 Hours": 6, "24 Hours": 24, "1 Week": 168}
 selected_time = st.selectbox("Select Time Range", list(time_options.keys()), index=2)
 time_filter = time_options[selected_time]
 
 fig = create_chart(time_filter)
-st.plotly_chart(fig, use_container_width=True)
-st.markdown('</div>', unsafe_allow_html)
-figmarkdown('<div class="section-box">', unsafe_allow_html=True)
+st.plotly_chart(fig, width='stretch')
+st.markdown('</div>', unsafe_allow_html=True)
+st.markdown('<div class="section-box">', unsafe_allow_html=True)
 st.subheader("Controls")
 col1, col2 = st.columns(2)
 
@@ -281,10 +281,5 @@ with col1:
         st.session_state.prediction = "No prediction available"
         st.session_state.buzzer = "Off"
         st.info("Disconnected from MQTT broker")
-    
-    st.markdown('</div>', unsafe_allow_html=True)
-    st.session_state.prediction = "No prediction available"
-    st.session_state.buzzer = "Off"
-    st.info("Disconnected from MQTT broker")
     
     st.markdown('</div>', unsafe_allow_html=True)
