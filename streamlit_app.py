@@ -155,6 +155,7 @@ st.markdown("""
         <div class="logo-text">
             <h1>Plant Monitoring System</h1>
             <p>Samsung Innovation Campus Project</p>
+            <p>By DI-Binary</p>
         </div>
     </div>
 </div>
