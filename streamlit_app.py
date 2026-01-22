@@ -13,6 +13,10 @@ st.set_page_config(
 
 st.markdown("""
 <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono&display=swap');
+    body {
+        font-family: 'JetBrains Mono', monospace;
+    }
     .main-header {
         display: flex;
         justify-content: space-between;
@@ -45,20 +49,20 @@ st.markdown("""
         gap: 10px;
         padding: 10px 20px;
         border-radius: 25px;
-        background-color: rgba(255, 255, 255, 0.1);
+        background-color: rgba(240, 244, 224, 0.8);
         margin-top: 15px;
     }
     .status-dot {
         width: 12px;
         height: 12px;
         border-radius: 50%;
-        background-color: #4CAF50;
+        background-color: #228B22;
     }
     .status-dot.disconnected {
         background-color: #ff5252;
     }
     .card {
-        background: white;
+        background: #F0F4E0;
         border-radius: 10px;
         padding: 20px;
         box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
@@ -70,7 +74,7 @@ st.markdown("""
         gap: 15px;
         margin-top: 15px;
         padding-top: 15px;
-        border-top: 1px solid #eee;
+        border-top: 1px solid #D4EDDA;
     }
     .plant-icon {
         font-size: 2rem;
@@ -81,11 +85,11 @@ st.markdown("""
     }
     .plant-details p {
         margin: 0;
-        color: #666;
+        color: #556B2F;
         font-size: 0.9rem;
     }
     .control-card {
-        background: white;
+        background: #F0F4E0;
         border-radius: 10px;
         padding: 20px;
         box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
@@ -94,17 +98,17 @@ st.markdown("""
         text-align: center;
         padding: 20px;
         margin-top: 30px;
-        color: #666;
+        color: #556B2F;
         font-size: 0.9rem;
-        border-top: 1px solid #eee;
+        border-top: 1px solid #D4EDDA;
     }
     .prediction-box {
-        background: white;
+        background: rgba(85, 107, 47, 0.8);
         border-radius: 10px;
         padding: 10px 20px;
         box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         font-size: 1rem;
-        color: #333;
+        color: white;
     }
 </style>
 """, unsafe_allow_html=True)
