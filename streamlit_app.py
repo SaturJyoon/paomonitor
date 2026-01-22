@@ -124,6 +124,13 @@ st.markdown("""
         flex-direction: column;
         gap: 10px;
     }
+    .section-box {
+        background: #f5f5f5;
+        padding: 20px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -200,6 +207,7 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
+st.markdown('<div class="section-box">', unsafe_allow_html=True)
 st.subheader("Current Readings")
 col1, col2, col3 = st.columns(3)
 
@@ -241,8 +249,8 @@ with col3:
         </div>
     </div>
     """, unsafe_allow_html=True)
-
-# Chart Section
+st.markdown('</div>', unsafe_allow_html=True)
+markdown('<div class="section-box">', unsafe_allow_html=True)
 st.subheader("Data Visualization")
 time_options = {"1 Hour": 1, "6 Hours": 6, "24 Hours": 24, "1 Week": 168}
 selected_time = st.selectbox("Select Time Range", list(time_options.keys()), index=2)
@@ -250,8 +258,8 @@ time_filter = time_options[selected_time]
 
 fig = create_chart(time_filter)
 st.plotly_chart(fig, use_container_width=True)
-
-# Controls
+st.markdown('</div>', unsafe_allow_html
+figmarkdown('<div class="section-box">', unsafe_allow_html=True)
 st.subheader("Controls")
 col1, col2 = st.columns(2)
 
@@ -271,6 +279,11 @@ with col1:
     if st.button("🔌 Disconnect"):
         st.session_state.connected = False
         st.session_state.prediction = "No prediction available"
+        st.session_state.buzzer = "Off"
+        st.info("Disconnected from MQTT broker")
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+    st.session_state.prediction = "No prediction available"
         st.session_state.buzzer = "Off"
         st.info("Disconnected from MQTT broker")
     
