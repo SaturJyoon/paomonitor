@@ -4,6 +4,48 @@ import random
 import pandas as pd
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
+import paho.mqtt.client as mqtt
+import threading
+
+# MQTT Callbacks
+def on_connect(client, userdata, flags, rc):
+    try:
+        if rc == 0:
+            st.session_state.mqtt_connected = True
+            client.subscribe(st.session_state.get('sensor_topic', 'samsung-innovation-campus/plant-data'))
+            client.subscribe(st.session_state.get('prediction_topic', 'samsung-innovation-campus/prediction'))
+        else:
+            st.session_state.mqtt_connected = False
+    except:
+        pass  # Session state might not be available in callback context
+
+def on_disconnect(client, userdata, rc):
+    try:
+        st.session_state.mqtt_connected = False
+    except:
+        pass
+
+def on_message(client, userdata, msg):
+    try:
+        topic = msg.topic
+        payload = msg.payload.decode()
+        
+        if topic == st.session_state.get('sensor_topic', 'samsung-innovation-campus/plant-data'):
+            # Parse sensor data and update charts
+            try:
+                data = eval(payload)  # Assuming JSON-like string
+                if 'temperature' in data:
+                    st.session_state.temperature = data['temperature']
+                if 'humidity' in data:
+                    st.session_state.humidity = data['humidity']
+                if 'soil_moisture' in data:
+                    st.session_state.soil_moisture = data['soil_moisture']
+            except:
+                pass
+        elif topic == st.session_state.get('prediction_topic', 'samsung-innovation-campus/prediction'):
+            st.session_state.prediction = payload
+    except:
+        pass
 
 st.set_page_config(
     page_title="Plant Monitoring System",
@@ -153,6 +195,18 @@ if 'prediction' not in st.session_state:
     st.session_state.prediction = "No prediction available"
 if 'buzzer' not in st.session_state:
     st.session_state.buzzer = "Off"
+if 'mqtt_connected' not in st.session_state:
+    st.session_state.mqtt_connected = False
+if 'mqtt_client' not in st.session_state:
+    st.session_state.mqtt_client = None
+if 'sensor_topic' not in st.session_state:
+    st.session_state.sensor_topic = "samsung-innovation-campus/plant-data"
+if 'prediction_topic' not in st.session_state:
+    st.session_state.prediction_topic = "samsung-innovation-campus/prediction"
+if 'output_topic' not in st.session_state:
+    st.session_state.output_topic = "samsung-innovation-campus/output"
+if 'broker_url' not in st.session_state:
+    st.session_state.broker_url = "test.mosquitto.org"
 
 def get_status(value, min_val, max_val):
     if min_val <= value <= max_val:
@@ -265,21 +319,85 @@ col1, col2 = st.columns(2)
 
 with col1:
     st.markdown("### MQTT Configuration")
-    broker_url = st.text_input("Broker URL", "wss://test.mosquitto.org:8081")
-    sensor_topic = st.text_input("Sensor Topic", "samsung-innovation-campus/plant-data")
-    prediction_topic = st.text_input("Prediction Topic", "samsung-innovation-campus/prediction")
-    output_topic = st.text_input("Output Topic", "samsung-innovation-campus/output")
+    broker_url = st.text_input("Broker URL", st.session_state.broker_url)
+    sensor_topic = st.text_input("Sensor Topic", st.session_state.sensor_topic)
+    prediction_topic = st.text_input("Prediction Topic", st.session_state.prediction_topic)
+    output_topic = st.text_input("Output Topic", st.session_state.output_topic)
+    
+    # Update session state with current inputs
+    st.session_state.broker_url = broker_url
+    st.session_state.sensor_topic = sensor_topic
+    st.session_state.prediction_topic = prediction_topic
+    st.session_state.output_topic = output_topic
     
     if st.button("🔌 Connect to MQTT"):
-        st.session_state.connected = True
-        st.session_state.prediction = "Healthy"  # Simulated prediction
-        st.session_state.buzzer = "On"  # Simulated buzzer on
-        st.success("Connected to MQTT broker (simulated)")
+        if st.session_state.get('mqtt_connected', False):
+            st.info("Already connected to MQTT broker")
+        else:
+            try:
+                # Clean up any existing client
+                if st.session_state.get('mqtt_client'):
+                    try:
+                        st.session_state.mqtt_client.disconnect()
+                        st.session_state.mqtt_client.loop_stop()
+                    except:
+                        pass
+                
+                # Parse broker URL and create appropriate client
+                if broker_url.startswith("wss://") or broker_url.startswith("ws://"):
+                    client = mqtt.Client(transport="websockets")
+                    if broker_url.startswith("wss://"):
+                        host = broker_url.replace("wss://", "").split(":")[0]
+                        port = 8081  # Default WebSocket port
+                        if ":" in broker_url.replace("wss://", ""):
+                            port_str = broker_url.replace("wss://", "").split(":")[1]
+                            if port_str:
+                                port = int(port_str)
+                    else:  # ws://
+                        host = broker_url.replace("ws://", "").split(":")[0]
+                        port = 8080  # Default WebSocket port
+                        if ":" in broker_url.replace("ws://", ""):
+                            port_str = broker_url.replace("ws://", "").split(":")[1]
+                            if port_str:
+                                port = int(port_str)
+                    client.ws_set_options(path="/mqtt")
+                else:
+                    client = mqtt.Client()
+                    host = broker_url.split(":")[0] if ":" in broker_url else broker_url
+                    port = int(broker_url.split(":")[1]) if ":" in broker_url else 1883
+                
+                client.on_connect = on_connect
+                client.on_disconnect = on_disconnect
+                client.on_message = on_message
+                
+                client.connect(host, port, 60)
+                client.loop_start()
+                st.session_state.mqtt_client = client
+                st.success("Connecting to MQTT broker...")
+            except Exception as e:
+                st.error(f"Failed to connect to MQTT broker: {str(e)}")
+                st.session_state.mqtt_connected = False
     
     if st.button("🔌 Disconnect"):
-        st.session_state.connected = False
-        st.session_state.prediction = "No prediction available"
-        st.session_state.buzzer = "Off"
-        st.info("Disconnected from MQTT broker")
+        if st.session_state.get('mqtt_client'):
+            try:
+                st.session_state.mqtt_client.disconnect()
+                st.session_state.mqtt_client.loop_stop()
+                st.session_state.mqtt_client = None
+                st.session_state.mqtt_connected = False
+                st.session_state.connected = False
+                st.session_state.prediction = "No prediction available"
+                st.session_state.buzzer = "Off"
+                st.info("Disconnected from MQTT broker")
+            except Exception as e:
+                st.error(f"Error disconnecting: {str(e)}")
+        else:
+            st.info("Not connected to MQTT broker")
+    
+    # Display connection status
+    if st.session_state.mqtt_connected:
+        st.success("✅ Connected to MQTT broker")
+    else:
+        st.warning("❌ Not connected to MQTT broker")
     
     st.markdown('</div>', unsafe_allow_html=True)
