@@ -1,0 +1,1007 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plant Monitoring | Samsung Innovation Campus</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.1.0/paho-mqtt.min.js"></script>
+    <style>
+        :root {
+            --samsung-blue: #1428A0;
+            --samsung-light-blue: #0085FF;
+            --samsung-dark: #0C0C0C;
+            --samsung-gray: #F5F5F5;
+            --samsung-gradient: linear-gradient(135deg, #1428A0 0%, #0085FF 100%);
+            --success-color: #2E7D32;
+            --warning-color: #F9A825;
+            --danger-color: #C62828;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #f9f9f9;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Header */
+        header {
+            background: var(--samsung-gradient);
+            color: white;
+            padding: 25px 0;
+            border-radius: 0 0 20px 20px;
+            box-shadow: 0 5px 20px rgba(20, 40, 160, 0.2);
+            margin-bottom: 30px;
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logo {
+            font-size: 2.8rem;
+            color: white;
+        }
+
+        .logo-text h1 {
+            font-size: 2.2rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        .logo-text p {
+            font-size: 1rem;
+            opacity: 0.9;
+            font-weight: 300;
+        }
+
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(255, 255, 255, 0.15);
+            padding: 12px 20px;
+            border-radius: 50px;
+            backdrop-filter: blur(10px);
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: #4CAF50;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.disconnected {
+            background-color: #ff5252;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        /* Dashboard Grid */
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 18px;
+            padding: 25px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.05);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border-left: 5px solid var(--samsung-blue);
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .card-title {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: var(--samsung-dark);
+        }
+
+        .card-icon {
+            font-size: 2rem;
+            color: var(--samsung-blue);
+        }
+
+        .value-display {
+            font-size: 3.2rem;
+            font-weight: 700;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .humidity {
+            color: var(--samsung-light-blue);
+        }
+
+        .temperature {
+            color: var(--warning-color);
+        }
+
+        .moisture {
+            color: var(--success-color);
+        }
+
+        .unit {
+            font-size: 1.8rem;
+            font-weight: 400;
+            color: #777;
+        }
+
+        .status {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 50px;
+            background-color: var(--samsung-gray);
+            font-weight: 500;
+        }
+
+        .chart-container {
+            grid-column: 1 / -1;
+            background: white;
+            border-radius: 18px;
+            padding: 25px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.05);
+            margin-bottom: 30px;
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+
+        .chart-title {
+            font-size: 1.6rem;
+            font-weight: 600;
+            color: var(--samsung-dark);
+        }
+
+        .time-selector {
+            display: flex;
+            gap: 10px;
+        }
+
+        .time-btn {
+            padding: 8px 16px;
+            border-radius: 50px;
+            background: var(--samsung-gray);
+            border: none;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .time-btn.active {
+            background: var(--samsung-gradient);
+            color: white;
+        }
+
+        .controls {
+            grid-column: 1 / -1;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+
+        .control-card {
+            background: white;
+            border-radius: 18px;
+            padding: 25px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.05);
+        }
+
+        .control-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: var(--samsung-dark);
+        }
+
+        .mqtt-config {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .input-group label {
+            font-weight: 500;
+            color: #555;
+        }
+
+        .input-group input {
+            padding: 12px 15px;
+            border-radius: 10px;
+            border: 1px solid #ddd;
+            font-size: 1rem;
+        }
+
+        .btn {
+            padding: 14px 20px;
+            border-radius: 10px;
+            border: none;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .btn-primary {
+            background: var(--samsung-gradient);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            opacity: 0.9;
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: var(--samsung-gray);
+            color: var(--samsung-dark);
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+
+        .plant-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+        }
+
+        .plant-icon {
+            font-size: 2.5rem;
+            color: var(--success-color);
+        }
+
+        .plant-details h4 {
+            font-size: 1.1rem;
+            margin-bottom: 5px;
+        }
+
+        .plant-details p {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: 25px;
+            margin-top: 30px;
+            color: #666;
+            font-size: 0.9rem;
+            border-top: 1px solid #eee;
+        }
+
+        .footer-logo {
+            color: var(--samsung-blue);
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                gap: 20px;
+                text-align: center;
+            }
+            
+            .dashboard, .controls {
+                grid-template-columns: 1fr;
+            }
+            
+            .value-display {
+                font-size: 2.5rem;
+            }
+            
+            .time-selector {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <div class="logo-container">
+                    <div class="logo">
+                        <i class="fas fa-seedling"></i>
+                    </div>
+                    <div class="logo-text">
+                        <h1>Plant Monitoring System</h1>
+                        <p>Samsung Innovation Campus Project</p>
+                    </div>
+                </div>
+                <div class="connection-status">
+                    <div class="status-dot" id="statusDot"></div>
+                    <span id="connectionStatus">Connecting to MQTT...</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <div class="dashboard">
+            <!-- Humidity Card -->
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">Air Humidity</h2>
+                    <div class="card-icon">
+                        <i class="fas fa-tint"></i>
+                    </div>
+                </div>
+                <div class="value-display humidity" id="humidityValue">--<span class="unit">%</span></div>
+                <div class="status">
+                    <i class="fas fa-info-circle"></i>
+                    <span id="humidityStatus">Waiting for data...</span>
+                </div>
+                <div class="plant-info">
+                    <div class="plant-icon">
+                        <i class="fas fa-leaf"></i>
+                    </div>
+                    <div class="plant-details">
+                        <h4>Optimal Range: 40-60%</h4>
+                        <p>For most indoor plants</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Temperature Card -->
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">Temperature</h2>
+                    <div class="card-icon">
+                        <i class="fas fa-thermometer-half"></i>
+                    </div>
+                </div>
+                <div class="value-display temperature" id="temperatureValue">--<span class="unit">°C</span></div>
+                <div class="status">
+                    <i class="fas fa-info-circle"></i>
+                    <span id="temperatureStatus">Waiting for data...</span>
+                </div>
+                <div class="plant-info">
+                    <div class="plant-icon">
+                        <i class="fas fa-sun"></i>
+                    </div>
+                    <div class="plant-details">
+                        <h4>Optimal Range: 18-24°C</h4>
+                        <p>For most indoor plants</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Soil Moisture Card -->
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">Soil Moisture</h2>
+                    <div class="card-icon">
+                        <i class="fas fa-soil"></i>
+                    </div>
+                </div>
+                <div class="value-display moisture" id="moistureValue">--<span class="unit">%</span></div>
+                <div class="status">
+                    <i class="fas fa-info-circle"></i>
+                    <span id="moistureStatus">Waiting for data...</span>
+                </div>
+                <div class="plant-info">
+                    <div class="plant-icon">
+                        <i class="fas fa-tree"></i>
+                    </div>
+                    <div class="plant-details">
+                        <h4>Optimal Range: 40-80%</h4>
+                        <p>Varies by plant type</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chart Section -->
+        <div class="chart-container">
+            <div class="chart-header">
+                <h2 class="chart-title">Plant Data Over Time</h2>
+                <div class="time-selector">
+                    <button class="time-btn active" data-time="1">1 Hour</button>
+                    <button class="time-btn" data-time="6">6 Hours</button>
+                    <button class="time-btn" data-time="24">24 Hours</button>
+                    <button class="time-btn" data-time="168">1 Week</button>
+                </div>
+            </div>
+            <canvas id="dataChart"></canvas>
+        </div>
+
+        <!-- Controls Section -->
+        <div class="controls">
+            <div class="control-card">
+                <h3 class="control-title">MQTT Configuration</h3>
+                <div class="mqtt-config">
+                    <div class="input-group">
+                        <label for="brokerUrl">Broker URL</label>
+                        <input type="text" id="brokerUrl" value="wss://test.mosquitto.org:8081">
+                    </div>
+                    <div class="input-group">
+                        <label for="topic">Topic to Subscribe</label>
+                        <input type="text" id="topic" value="samsung-innovation-campus/plant-data">
+                    </div>
+                    <div class="input-group">
+                        <label for="clientId">Client ID</label>
+                        <input type="text" id="clientId" value="plant-monitor-" placeholder="Leave empty for random ID">
+                    </div>
+                    <button class="btn btn-primary" id="connectBtn">
+                        <i class="fas fa-plug"></i> Connect to MQTT
+                    </button>
+                    <button class="btn btn-secondary" id="disconnectBtn">
+                        <i class="fas fa-power-off"></i> Disconnect
+                    </button>
+                </div>
+            </div>
+
+            <div class="control-card">
+                <h3 class="control-title">System Controls</h3>
+                <div class="mqtt-config">
+                    <p style="margin-bottom: 15px; color: #666;">Manually simulate plant data for testing or use the auto-generate feature.</p>
+                    <button class="btn btn-secondary" id="simulateBtn">
+                        <i class="fas fa-bolt"></i> Simulate Data
+                    </button>
+                    <button class="btn btn-secondary" id="autoGenBtn">
+                        <i class="fas fa-play-circle"></i> Auto-Generate Data
+                    </button>
+                    <button class="btn btn-secondary" id="clearDataBtn">
+                        <i class="fas fa-trash-alt"></i> Clear Chart Data
+                    </button>
+                    <div class="plant-info" style="margin-top: 20px;">
+                        <div class="plant-icon">
+                            <i class="fas fa-microchip"></i>
+                        </div>
+                        <div class="plant-details">
+                            <h4>System Status: <span id="systemStatus">Ready</span></h4>
+                            <p>Last update: <span id="lastUpdate">Never</span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>Plant Monitoring System | <span class="footer-logo">Samsung Innovation Campus</span> Project</p>
+            <p>Real-time data visualization for plant health monitoring. Connect to your MQTT broker to start receiving data.</p>
+            <p style="margin-top: 15px; font-size: 0.8rem;">&copy; 2023 Plant Monitoring System. For demonstration purposes.</p>
+        </div>
+    </footer>
+
+    <script>
+        // Global variables
+        let mqttClient = null;
+        let isConnected = false;
+        let chart = null;
+        let dataPoints = [];
+        let autoGenerateInterval = null;
+        const maxDataPoints = 100;
+
+        // Initialize the chart
+        function initializeChart() {
+            const ctx = document.getElementById('dataChart').getContext('2d');
+            
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    datasets: [
+                        {
+                            label: 'Humidity (%)',
+                            data: [],
+                            borderColor: '#0085FF',
+                            backgroundColor: 'rgba(0, 133, 255, 0.1)',
+                            borderWidth: 3,
+                            tension: 0.4,
+                            fill: true
+                        },
+                        {
+                            label: 'Temperature (°C)',
+                            data: [],
+                            borderColor: '#F9A825',
+                            backgroundColor: 'rgba(249, 168, 37, 0.1)',
+                            borderWidth: 3,
+                            tension: 0.4,
+                            fill: true
+                        },
+                        {
+                            label: 'Soil Moisture (%)',
+                            data: [],
+                            borderColor: '#2E7D32',
+                            backgroundColor: 'rgba(46, 125, 50, 0.1)',
+                            borderWidth: 3,
+                            tension: 0.4,
+                            fill: true
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: 'minute'
+                            },
+                            title: {
+                                display: true,
+                                text: 'Time'
+                            }
+                        },
+                        y: {
+                            beginAtZero: false,
+                            title: {
+                                display: true,
+                                text: 'Value'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false
+                        }
+                    },
+                    interaction: {
+                        intersect: false,
+                        mode: 'nearest'
+                    }
+                }
+            });
+        }
+
+        // Update chart with new data
+        function updateChart() {
+            if (!chart || dataPoints.length === 0) return;
+            
+            // Clear existing data
+            chart.data.datasets[0].data = [];
+            chart.data.datasets[1].data = [];
+            chart.data.datasets[2].data = [];
+            
+            // Add all data points
+            dataPoints.forEach(point => {
+                const time = new Date(point.timestamp);
+                
+                chart.data.datasets[0].data.push({
+                    x: time,
+                    y: point.humidity
+                });
+                
+                chart.data.datasets[1].data.push({
+                    x: time,
+                    y: point.temperature
+                });
+                
+                chart.data.datasets[2].data.push({
+                    x: time,
+                    y: point.moisture
+                });
+            });
+            
+            chart.update('none');
+        }
+
+        // Add a new data point
+        function addDataPoint(humidity, temperature, moisture) {
+            const newPoint = {
+                timestamp: new Date().toISOString(),
+                humidity: humidity,
+                temperature: temperature,
+                moisture: moisture
+            };
+            
+            dataPoints.push(newPoint);
+            
+            // Keep only the last maxDataPoints
+            if (dataPoints.length > maxDataPoints) {
+                dataPoints = dataPoints.slice(dataPoints.length - maxDataPoints);
+            }
+            
+            // Update chart
+            updateChart();
+            
+            // Update last update time
+            document.getElementById('lastUpdate').textContent = moment().format('HH:mm:ss');
+        }
+
+        // Update display values
+        function updateDisplay(humidity, temperature, moisture) {
+            // Update values
+            document.getElementById('humidityValue').innerHTML = `${humidity}<span class="unit">%</span>`;
+            document.getElementById('temperatureValue').innerHTML = `${temperature}<span class="unit">°C</span>`;
+            document.getElementById('moistureValue').innerHTML = `${moisture}<span class="unit">%</span>`;
+            
+            // Update status messages
+            document.getElementById('humidityStatus').textContent = 
+                humidity >= 40 && humidity <= 60 ? 'Optimal' : humidity < 40 ? 'Too low' : 'Too high';
+            
+            document.getElementById('temperatureStatus').textContent = 
+                temperature >= 18 && temperature <= 24 ? 'Optimal' : temperature < 18 ? 'Too low' : 'Too high';
+            
+            document.getElementById('moistureStatus').textContent = 
+                moisture >= 40 && moisture <= 80 ? 'Optimal' : moisture < 40 ? 'Too low' : 'Too high';
+            
+            // Update status colors
+            updateStatusColors();
+        }
+
+        // Update status colors based on values
+        function updateStatusColors() {
+            const humidity = parseFloat(document.getElementById('humidityValue').textContent);
+            const temperature = parseFloat(document.getElementById('temperatureValue').textContent);
+            const moisture = parseFloat(document.getElementById('moistureValue').textContent);
+            
+            // Update humidity status color
+            const humidityStatus = document.getElementById('humidityStatus');
+            humidityStatus.style.color = humidity >= 40 && humidity <= 60 ? '#2E7D32' : 
+                                         humidity < 40 ? '#F9A825' : '#C62828';
+            
+            // Update temperature status color
+            const temperatureStatus = document.getElementById('temperatureStatus');
+            temperatureStatus.style.color = temperature >= 18 && temperature <= 24 ? '#2E7D32' : 
+                                            temperature < 18 ? '#F9A825' : '#C62828';
+            
+            // Update moisture status color
+            const moistureStatus = document.getElementById('moistureStatus');
+            moistureStatus.style.color = moisture >= 40 && moisture <= 80 ? '#2E7D32' : 
+                                         moisture < 40 ? '#F9A825' : '#C62828';
+        }
+
+        // Simulate plant data (for testing without MQTT)
+        function simulateData() {
+            // Generate random but realistic plant data
+            const humidity = Math.floor(Math.random() * 30) + 35; // 35-65%
+            const temperature = (Math.random() * 10) + 18; // 18-28°C
+            const moisture = Math.floor(Math.random() * 50) + 30; // 30-80%
+            
+            updateDisplay(humidity, temperature, moisture);
+            addDataPoint(humidity, temperature, moisture);
+            
+            // Show notification
+            showNotification('Simulated data generated successfully');
+        }
+
+        // Auto-generate data
+        function startAutoGenerate() {
+            if (autoGenerateInterval) {
+                clearInterval(autoGenerateInterval);
+            }
+            
+            autoGenerateInterval = setInterval(simulateData, 3000); // Every 3 seconds
+            document.getElementById('systemStatus').textContent = 'Auto-generating data';
+            document.getElementById('autoGenBtn').innerHTML = '<i class="fas fa-stop-circle"></i> Stop Auto-Generate';
+            document.getElementById('autoGenBtn').onclick = stopAutoGenerate;
+            
+            showNotification('Auto-generating data started');
+        }
+
+        // Stop auto-generate data
+        function stopAutoGenerate() {
+            if (autoGenerateInterval) {
+                clearInterval(autoGenerateInterval);
+                autoGenerateInterval = null;
+            }
+            
+            document.getElementById('systemStatus').textContent = 'Ready';
+            document.getElementById('autoGenBtn').innerHTML = '<i class="fas fa-play-circle"></i> Auto-Generate Data';
+            document.getElementById('autoGenBtn').onclick = startAutoGenerate;
+            
+            showNotification('Auto-generating data stopped');
+        }
+
+        // Clear all chart data
+        function clearChartData() {
+            dataPoints = [];
+            updateChart();
+            document.getElementById('systemStatus').textContent = 'Data cleared';
+            document.getElementById('lastUpdate').textContent = 'Never';
+            
+            // Reset displays
+            document.getElementById('humidityValue').innerHTML = '--<span class="unit">%</span>';
+            document.getElementById('temperatureValue').innerHTML = '--<span class="unit">°C</span>';
+            document.getElementById('moistureValue').innerHTML = '--<span class="unit">%</span>';
+            
+            document.getElementById('humidityStatus').textContent = 'Waiting for data...';
+            document.getElementById('temperatureStatus').textContent = 'Waiting for data...';
+            document.getElementById('moistureStatus').textContent = 'Waiting for data...';
+            
+            showNotification('Chart data cleared');
+        }
+
+        // Show notification
+        function showNotification(message) {
+            // Create notification element
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                bottom: 20px;
+                right: 20px;
+                background: var(--samsung-gradient);
+                color: white;
+                padding: 15px 25px;
+                border-radius: 10px;
+                box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+                z-index: 1000;
+                animation: slideIn 0.3s ease;
+                max-width: 300px;
+            `;
+            
+            notification.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <i class="fas fa-info-circle"></i>
+                    <span>${message}</span>
+                </div>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Remove after 3 seconds
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 300);
+            }, 3000);
+        }
+
+        // MQTT Connection Functions
+        function connectToMqtt() {
+            const brokerUrl = document.getElementById('brokerUrl').value;
+            const topic = document.getElementById('topic').value;
+            let clientId = document.getElementById('clientId').value;
+            
+            if (!clientId) {
+                clientId = 'plant-monitor-' + Math.random().toString(16).substring(2, 8);
+            }
+            
+            // Update UI
+            document.getElementById('connectionStatus').textContent = 'Connecting...';
+            document.getElementById('statusDot').classList.remove('disconnected');
+            document.getElementById('connectBtn').disabled = true;
+            
+            // Create MQTT client
+            mqttClient = new Paho.MQTT.Client(
+                brokerUrl.replace('wss://', '').replace('ws://', ''),
+                Number(8081),
+                clientId
+            );
+            
+            // Set callback handlers
+            mqttClient.onConnectionLost = onConnectionLost;
+            mqttClient.onMessageArrived = onMessageArrived;
+            
+            // Connect the client
+            mqttClient.connect({
+                onSuccess: onConnect,
+                onFailure: onConnectFailure,
+                useSSL: brokerUrl.startsWith('wss://'),
+                reconnect: true
+            });
+        }
+
+        function onConnect() {
+            console.log('Connected to MQTT broker');
+            isConnected = true;
+            
+            // Update UI
+            document.getElementById('connectionStatus').textContent = 'Connected';
+            document.getElementById('statusDot').classList.remove('disconnected');
+            document.getElementById('connectBtn').disabled = false;
+            document.getElementById('systemStatus').textContent = 'Connected to MQTT';
+            
+            // Subscribe to topic
+            const topic = document.getElementById('topic').value;
+            mqttClient.subscribe(topic);
+            
+            showNotification(`Connected to MQTT broker and subscribed to ${topic}`);
+        }
+
+        function onConnectFailure(error) {
+            console.error('Failed to connect to MQTT broker', error);
+            isConnected = false;
+            
+            // Update UI
+            document.getElementById('connectionStatus').textContent = 'Connection failed';
+            document.getElementById('statusDot').classList.add('disconnected');
+            document.getElementById('connectBtn').disabled = false;
+            
+            showNotification('Failed to connect to MQTT broker. Check your connection settings.');
+        }
+
+        function onConnectionLost(responseObject) {
+            console.log('Connection lost:', responseObject.errorMessage);
+            isConnected = false;
+            
+            // Update UI
+            document.getElementById('connectionStatus').textContent = 'Disconnected';
+            document.getElementById('statusDot').classList.add('disconnected');
+            document.getElementById('systemStatus').textContent = 'Disconnected';
+            
+            if (responseObject.errorCode !== 0) {
+                showNotification('Connection lost: ' + responseObject.errorMessage);
+            }
+        }
+
+        function onMessageArrived(message) {
+            console.log('Message received:', message.payloadString);
+            
+            try {
+                const data = JSON.parse(message.payloadString);
+                
+                // Validate data structure
+                if (typeof data.humidity !== 'undefined' && 
+                    typeof data.temperature !== 'undefined' && 
+                    typeof data.moisture !== 'undefined') {
+                    
+                    // Update display with received data
+                    updateDisplay(data.humidity, data.temperature, data.moisture);
+                    addDataPoint(data.humidity, data.temperature, data.moisture);
+                    
+                    // Update system status
+                    document.getElementById('systemStatus').textContent = 'Receiving real-time data';
+                } else {
+                    console.warn('Received data does not have expected structure:', data);
+                }
+            } catch (error) {
+                console.error('Error parsing MQTT message:', error);
+            }
+        }
+
+        function disconnectFromMqtt() {
+            if (mqttClient && isConnected) {
+                mqttClient.disconnect();
+                isConnected = false;
+                
+                // Update UI
+                document.getElementById('connectionStatus').textContent = 'Disconnected';
+                document.getElementById('statusDot').classList.add('disconnected');
+                document.getElementById('systemStatus').textContent = 'Disconnected';
+                
+                showNotification('Disconnected from MQTT broker');
+            }
+        }
+
+        // Initialize the application
+        function init() {
+            // Initialize chart
+            initializeChart();
+            
+            // Add sample data for demo
+            setTimeout(() => {
+                simulateData();
+                simulateData(); // Add a second point
+            }, 500);
+            
+            // Set up event listeners
+            document.getElementById('connectBtn').addEventListener('click', connectToMqtt);
+            document.getElementById('disconnectBtn').addEventListener('click', disconnectFromMqtt);
+            document.getElementById('simulateBtn').addEventListener('click', simulateData);
+            document.getElementById('autoGenBtn').addEventListener('click', startAutoGenerate);
+            document.getElementById('clearDataBtn').addEventListener('click', clearChartData);
+            
+            // Time selector buttons
+            document.querySelectorAll('.time-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    // Remove active class from all buttons
+                    document.querySelectorAll('.time-btn').forEach(btn => {
+                        btn.classList.remove('active');
+                    });
+                    
+                    // Add active class to clicked button
+                    this.classList.add('active');
+                    
+                    // Update chart time unit based on selected time
+                    const timeValue = parseInt(this.getAttribute('data-time'));
+                    let unit = 'minute';
+                    
+                    if (timeValue === 168) unit = 'day';
+                    else if (timeValue >= 24) unit = 'hour';
+                    
+                    chart.options.scales.x.time.unit = unit;
+                    chart.update();
+                    
+                    showNotification(`Showing data for ${this.textContent}`);
+                });
+            });
+            
+            // Add CSS for notification animations
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes slideIn {
+                    from { transform: translateX(100%); opacity: 0; }
+                    to { transform: translateX(0); opacity: 1; }
+                }
+                @keyframes slideOut {
+                    from { transform: translateX(0); opacity: 1; }
+                    to { transform: translateX(100%); opacity: 0; }
+                }
+            `;
+            document.head.appendChild(style);
+            
+            // Show welcome message
+            setTimeout(() => {
+                showNotification('Welcome to Plant Monitoring System! Configure MQTT to connect to your sensor.');
+            }, 1000);
+        }
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
