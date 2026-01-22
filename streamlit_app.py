@@ -258,7 +258,7 @@ time_filter = time_options[selected_time]
 
 fig = create_chart(time_filter)
 st.plotly_chart(fig, use_container_width=True)
-st.markdown('</div>', unsafe_allow_html
+st.markdown('</div>', unsafe_allow_html)
 figmarkdown('<div class="section-box">', unsafe_allow_html=True)
 st.subheader("Controls")
 col1, col2 = st.columns(2)
