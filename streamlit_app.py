@@ -284,7 +284,7 @@ with col1:
     
     st.markdown('</div>', unsafe_allow_html=True)
     st.session_state.prediction = "No prediction available"
-        st.session_state.buzzer = "Off"
-        st.info("Disconnected from MQTT broker")
+    st.session_state.buzzer = "Off"
+    st.info("Disconnected from MQTT broker")
     
     st.markdown('</div>', unsafe_allow_html=True)
